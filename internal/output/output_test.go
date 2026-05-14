@@ -73,3 +73,28 @@ func TestWrite_MultipleEntries(t *testing.T) {
 		t.Errorf("expected 3 JSON lines, got %d", len(parts))
 	}
 }
+
+// TestWrite_EachEntryIsValidJSON verifies that each line written in a
+// multi-entry scenario is individually valid JSON, not just the whole output.
+func TestWrite_EachEntryIsValidJSON(t *testing.T) {
+	var buf bytes.Buffer
+	w := output.New(&buf)
+
+	sources := []string{"a.log", "b.log", "c.log"}
+	for _, s := range sources {
+		if err := w.Write(s, "some line", "pattern"); err != nil {
+			t.Fatalf("Write returned error: %v", err)
+		}
+	}
+
+	parts := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	for i, part := range parts {
+		var entry output.Entry
+		if err := json.Unmarshal([]byte(part), &entry); err != nil {
+			t.Errorf("line %d is not valid JSON: %v", i+1, err)
+		}
+		if entry.Source != sources[i] {
+			t.Errorf("line %d: expected source %q, got %q", i+1, sources[i], entry.Source)
+		}
+	}
+}
